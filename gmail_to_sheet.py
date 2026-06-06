@@ -70,7 +70,10 @@ def extract_pdf_text(gmail_service, message, part):
         reader = PdfReader(temp_path)
 
         if reader.is_encrypted:
-            return "PDF is password protected"
+            try:
+                reader.decrypt("")
+            except Exception:
+                return "PDF is password protected"
 
         text = ""
         for page in reader.pages:
@@ -111,33 +114,34 @@ def process_emails():
 
     worksheet = sheet.sheet1
 
-    # Clear old data except header
-    worksheet.clear()
+    existing_ids = set()
 
-    worksheet.update(
-        "A1:G1",
-        [[
-            "S.No",
-            "Sender",
-            "Date",
-            "Subject",
-            "Email Preview",
-            "Attachment Name",
-            "AI Summary"
-        ]]
-    )
+    try:
+        existing_ids = set(worksheet.col_values(2)[1:])
+    except Exception:
+        pass
 
     results = gmail_service.users().messages().list(
         userId="me",
-        maxResults=100
+        q="has:attachment filename:pdf",
+        maxResults=500
     ).execute()
 
     messages = results.get("messages", [])
 
-    row = 2
-    sno = 1
+    all_rows = worksheet.get_all_values()
+
+    row = len(all_rows) + 1
+    sno = max(len(all_rows) - 1, 0) + 1
+
+    new_emails_added = 0
+    total_processed = 0
+    password_protected = 0
 
     for msg in messages:
+        if msg["id"] in existing_ids:
+            continue
+
         message = gmail_service.users().messages().get(
             userId="me",
             id=msg["id"]
@@ -170,33 +174,43 @@ def process_emails():
             filename = part.get("filename", "")
 
             if filename.lower().endswith(".pdf"):
+                total_processed += 1
                 pdf_found = True
+
                 print(f"PDF Found: {filename}")
                 attachment_name = filename
 
-                pdf_text = extract_pdf_text(gmail_service, message, part)
+                pdf_text = extract_pdf_text(
+                    gmail_service,
+                    message,
+                    part
+                )
 
                 if pdf_text == "PDF is password protected":
+                    password_protected += 1
                     ai_summary = "Password-protected PDF. Summary unavailable."
+
                 elif pdf_text.strip():
                     try:
-                        print(f"Subject: {subject}")
-                        print(f"Attachment: {attachment_name}")
                         ai_summary = summarize_with_ollama(pdf_text)
+
                     except Exception as e:
                         ai_summary = f"Summary Error: {str(e)}"
+
                 else:
                     ai_summary = "No readable text found in PDF"
 
                 break
 
+        # Skip this email if no PDF was found
         if not pdf_found:
             continue
 
         worksheet.update(
-            f"A{row}:G{row}",
+            f"A{row}:H{row}",
             [[
                 sno,
+                msg["id"],
                 sender,
                 date,
                 subject,
@@ -208,8 +222,13 @@ def process_emails():
 
         row += 1
         sno += 1
+        new_emails_added += 1
 
-    return "✅ Sheet updated successfully"
+    return {
+        "new_pdfs": new_emails_added,
+        "total_pdfs": total_processed,
+        "password_protected": password_protected
+    }
 
 
 if __name__ == "__main__":
