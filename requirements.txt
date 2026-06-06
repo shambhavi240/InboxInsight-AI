@@ -1,2 +1,9 @@
 ollama
 pypdf
+streamlit
+google-auth
+google-auth-oauthlib
+google-api-python-client
+gspread
+pandas
+requests
