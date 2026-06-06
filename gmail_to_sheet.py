@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import gspread
 from pypdf import PdfReader
+from pypdf.errors import FileNotDecryptedError
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
@@ -28,14 +29,14 @@ def summarize_with_ollama(text):
     print(text[:1000])
     print("================================\n")
     result = subprocess.run(
-    command,
-    input=prompt,
-    text=True,
-    encoding="utf-8",
-    errors="replace",
-    capture_output=True,
-    timeout=600,
-)
+        command,
+        input=prompt,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        timeout=600,
+    )
 
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "Ollama failed to generate a summary.")
@@ -67,18 +68,25 @@ def extract_pdf_text(gmail_service, message, part):
 
     try:
         reader = PdfReader(temp_path)
-        text = ""
 
+        if reader.is_encrypted:
+            return "PDF is password protected"
+
+        text = ""
         for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+            page_text = page.extract_text() or ""
+            text += page_text + "\n"
 
         print("\n===== PDF EXTRACTED =====")
         print(text[:1000])
         print("=========================\n")
 
         return text
+    except FileNotDecryptedError:
+        return "PDF is password protected"
+    except Exception as e:
+        print(f"PDF Error: {e}")
+        return "PDF could not be processed"
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
@@ -86,9 +94,9 @@ def extract_pdf_text(gmail_service, message, part):
 
 def process_emails():
     flow = InstalledAppFlow.from_client_secrets_file(
-    "credentials.json",
-    SCOPES
-)
+        "credentials.json",
+        SCOPES
+    )
     creds = flow.run_local_server(port=0)
 
     # Gmail
@@ -107,17 +115,17 @@ def process_emails():
     worksheet.clear()
 
     worksheet.update(
-    "A1:G1",
-    [[
-        "S.No",
-        "Sender",
-        "Date",
-        "Subject",
-        "Email Preview",
-        "Attachment Name",
-        "AI Summary"
-    ]]
-)
+        "A1:G1",
+        [[
+            "S.No",
+            "Sender",
+            "Date",
+            "Subject",
+            "Email Preview",
+            "Attachment Name",
+            "AI Summary"
+        ]]
+    )
 
     results = gmail_service.users().messages().list(
         userId="me",
@@ -130,7 +138,6 @@ def process_emails():
     sno = 1
 
     for msg in messages:
-
         message = gmail_service.users().messages().get(
             userId="me",
             id=msg["id"]
@@ -145,10 +152,8 @@ def process_emails():
         for header in headers:
             if header["name"] == "From":
                 sender = header["value"]
-
             elif header["name"] == "Subject":
                 subject = header["value"]
-
             elif header["name"] == "Date":
                 date = header["value"]
 
@@ -159,15 +164,21 @@ def process_emails():
 
         parts = message.get("payload", {}).get("parts", [])
 
+        pdf_found = False
+
         for part in parts:
             filename = part.get("filename", "")
 
             if filename.lower().endswith(".pdf"):
+                pdf_found = True
                 print(f"PDF Found: {filename}")
                 attachment_name = filename
+
                 pdf_text = extract_pdf_text(gmail_service, message, part)
 
-                if pdf_text.strip():
+                if pdf_text == "PDF is password protected":
+                    ai_summary = "Password-protected PDF. Summary unavailable."
+                elif pdf_text.strip():
                     try:
                         print(f"Subject: {subject}")
                         print(f"Attachment: {attachment_name}")
@@ -178,6 +189,9 @@ def process_emails():
                     ai_summary = "No readable text found in PDF"
 
                 break
+
+        if not pdf_found:
+            continue
 
         worksheet.update(
             f"A{row}:G{row}",
