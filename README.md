@@ -2,36 +2,64 @@
 
 ## Overview
 
-This project extracts text from PDF documents and generates concise summaries using a locally hosted AI model through Ollama.
+AI-Powered PDF Summarizer is a Python-based application that automatically extracts text from PDF documents and generates concise, context-aware summaries using a locally hosted Large Language Model (LLM) through Ollama. The project is designed to run entirely offline, ensuring privacy, low operational costs, and ease of deployment.
 
 ## Features
 
-* PDF text extraction
-* AI-generated summaries
-* Runs completely offline
-* No paid APIs required
-* Lightweight and beginner-friendly
+* Automated PDF text extraction
+* AI-generated document summarization
+* Fully offline execution using local LLMs
+* No external APIs or cloud services required
+* Lightweight and easy to deploy
+* Summary export to text files
+* Beginner-friendly architecture with practical AI integration
 
 ## Tech Stack
 
+### Programming Language
+
 * Python
+
+### Libraries & Tools
+
 * PyPDF
 * Ollama
+
+### AI Model
+
 * Gemma 3 1B
+
+## Project Architecture
+
+PDF Document
+→ Text Extraction (PyPDF)
+→ Prompt Processing
+→ Ollama LLM Inference
+→ AI-Generated Summary
+→ Output to Terminal & Text File
 
 ## Installation
 
-Install dependencies:
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd ai-pdf-summarizer
+```
+
+### 2. Install Dependencies
 
 ```bash
 pip install pypdf ollama
 ```
 
-Install Ollama:
+### 3. Install Ollama
+
+Download and install Ollama from:
 
 https://ollama.com/download
 
-Download model:
+### 4. Download the Language Model
 
 ```bash
 ollama run gemma3:1b
@@ -39,20 +67,37 @@ ollama run gemma3:1b
 
 ## Usage
 
-Place a PDF file in the project folder.
-
-Run:
+1. Place the PDF file inside the project directory.
+2. Execute the application:
 
 ```bash
 python pdf_summary.py
 ```
 
-The generated summary will be displayed in the terminal and saved to `summary.txt`.
+3. The generated summary will:
 
-## Project Workflow
+   * Display in the terminal
+   * Be saved automatically to `summary.txt`
 
-PDF → Text Extraction → Ollama → AI Summary
+## Use Cases
+
+* Academic paper summarization
+* Research document analysis
+* Report summarization
+* Quick document review
+* Knowledge extraction from lengthy PDFs
+
+## Future Enhancements
+
+* Multi-document summarization
+* Custom summary length controls
+* PDF upload interface using Streamlit
+* Support for multiple LLMs
+* Keyword and topic extraction
+* Question-answering over PDF documents
 
 ## Author
 
-Siddhi Shahi
+Shambhavi Shahi
+
+Computer Science Engineering Student 
