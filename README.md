@@ -27,7 +27,7 @@ AI-Powered PDF Summarizer is a Python-based application that automatically extra
 
 ### AI Model
 
-* Gemma 3 1
+* Gemma 3 1B
 
 ## Project Architecture
 
